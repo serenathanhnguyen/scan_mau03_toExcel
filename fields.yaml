@@ -1,0 +1,329 @@
+# =====================================================================
+#  fields.yaml — BẢNG KHAI BÁO CỘT  (file DUY NHẤT cần sửa khi Medinet đổi mẫu)
+# =====================================================================
+#  Tool đọc dòng 4 (keyword) của file mẫu Excel để biết có những cột nào.
+#  File này chỉ nói: "keyword X thì lấy dữ liệu từ đâu".
+#
+#  Khi Medinet THÊM cột     -> tool tự báo "cột mới chưa khai báo" trên màn hình,
+#                              và tạm điền theo dữ liệu mẫu ở dòng 5 của file mẫu.
+#                              Muốn tool đọc từ PDF: thêm 1 dòng bên dưới.
+#  Khi Medinet BỎ cột       -> không phải làm gì (keyword không còn trong mẫu thì bị bỏ qua).
+#  Khi Medinet ĐỔI keyword  -> sửa tên keyword ở dòng tương ứng.
+#
+#  Các kiểu khai báo (source):
+#    pdf      đọc từ PDF. Kèm  type + ask (hướng dẫn cho AI vị trí/cách đọc trên phiếu)
+#    const    giá trị cố định:           {source: const, value: "2"}
+#    sample   luôn lấy giá trị dòng 5 của file mẫu:  {source: sample}
+#    derive   lấy từ trường ảo (_xxx) rồi chuẩn hoá:  {source: derive, of: _tinh, post: province}
+#    formula  cột công thức của file mẫu, tool không ghi đè
+#    skip     để trống
+#
+#  Các kiểu dữ liệu (type) cho source: pdf:
+#    text         chữ tự do
+#    number       số (AI đọc nguyên văn, tool đổi dấu thập phân; có thể kèm scale/plausible)
+#    date         ngày -> dd/MM/yyyy
+#    choice       chọn 1 trong choices: {giá_trị_ghi_vào_Excel: "tên trên phiếu"}
+#    multichoice  chọn nhiều, ghi cách nhau dấu phẩy
+#    yesno        = choice {"1": Có, "0": Không} (viết tắt)
+#
+#  Tuỳ chọn khác:  default (khi PDF trống; "sample" = lấy dòng 5 mẫu), post (hàm chuẩn hoá
+#  trong m03/transform.py), scale (nhân hệ số, vd đổi g/dL -> g/L), plausible [min,max]
+#  (ngoài khoảng sẽ bị đánh dấu để kiểm tra lại).
+#  Keyword bắt đầu bằng "_" là trường ảo, không ghi ra Excel.
+# =====================================================================
+
+fields:
+
+  # ---------------- THÔNG TIN HÀNH CHÍNH (phiếu trang 1) ----------------
+  ma_phieu:        {source: skip}          # chỉ dùng khi cập nhật phiếu cũ
+  ngay_kham:
+    source: pdf
+    type: date
+    ask: "Ngày khám: ngày ghi cạnh chữ ký 'Người kết luận' ở trang Kết luận; nếu không rõ lấy 'Ngày lấy mẫu' trên phiếu xét nghiệm."
+  doi_tuong_kham:
+    source: pdf
+    type: text
+    post: digits_list
+    default: "3"
+    ask: "Mục 'Đối tượng (ghi số từ 1 đến 17...)' ở trang 2. Chỉ lấy số viết tay; để trống nếu không viết."
+  dia_diem_kham:
+    source: pdf
+    type: choice
+    choices: {"Cơ Sở Khám Chữa Bệnh": "CS KBCB", "Khám Lưu Động": "Khám lưu động", "Trạm Y Tế": "Trạm Y tế", "Trường Học": "Trường học", "KSK Tại Nhà": "KSK tại nhà"}
+    default: "Trạm Y Tế"
+    ask: "Dòng 'Địa điểm khám' ở trang 2: ô nào được đánh dấu."
+  dinh_danh_ca_nhan:
+    source: pdf
+    type: text
+    post: cccd
+    ask: "Mục 6 Số CCCD/Mã số định danh: đọc từng chữ số trong các ô vuông (12 số)."
+  ho_ten:
+    source: pdf
+    type: text
+    post: upper
+    ask: "Mục 1 Họ và tên (in hoa, có dấu tiếng Việt)."
+  ngay_sinh:
+    source: pdf
+    type: date
+    ask: "Mục 3 Ngày tháng năm sinh."
+  gioi_tinh:
+    source: pdf
+    type: choice
+    choices: {"1": "Nam", "2": "Nữ", "3": "Chưa xác định"}
+    ask: "Mục 2 Giới tính: ô Nam/Nữ nào được đánh dấu."
+  dan_toc_id:
+    source: pdf
+    type: text
+    post: title
+    ask: "Mục 4 Dân tộc."
+  nhom_mau_id:
+    source: pdf
+    type: choice
+    choices: {"A": "A", "B": "B", "O": "O", "AB": "AB"}
+    ask: "Mục 5 Nhóm máu (nếu có); để trống nếu không ghi."
+  yeu_to_nhom_mau_id:
+    source: pdf
+    type: choice
+    choices: {"1": "Rh-", "2": "Rh+"}
+    ask: "Yếu tố Rh nếu có ghi; thường để trống."
+  the_bhyt:
+    source: pdf
+    type: text
+    post: bhyt
+    ask: "Mục 7 Số thẻ BHYT: đọc các ký tự trong ô vuông (chữ + số, 15 ký tự). Để trống nếu không có."
+  sdt:
+    source: pdf
+    type: text
+    post: phone
+    ask: "Mục 11 Điện thoại di động."
+  dia_chi_hien_tai:
+    source: pdf
+    type: text
+    ask: "Mục 8 Nơi ở hiện tại: CHỈ số nhà + tên đường (không kèm phường/xã/tỉnh)."
+  city_id:   {source: derive, of: _tinh_hien_tai, post: province}
+  ward_id:   {source: derive, of: _phuong_hien_tai, post: ward, city: city_id}
+  nghenghiep_code:
+    source: derive
+    of: _nghe_nghiep_viet
+    post: occupation
+    default: "Lao động tự do"
+  noi_cong_tac_id:        {source: skip}      # cần mã đơn vị ở sheet NoiLamViec, để trống
+  noi_cong_tac_xa_phuong: {source: skip}
+  ly_do_kham:
+    source: pdf
+    type: text
+    ask: "Mục 12 Lý do khám sức khỏe."
+  tinhtrangthucnghiem_xetnghiem:
+    source: pdf
+    type: choice
+    choices: {"1": "Đồng ý xét nghiệm", "2": "Sử dụng kết quả xét nghiệm sẵn có", "3": "Từ chối xét nghiệm"}
+    default: "3"
+    ask: "Chọn '1' nếu hồ sơ có phiếu KẾT QUẢ XÉT NGHIỆM in kèm của bệnh nhân này; nếu hoàn toàn không có phiếu xét nghiệm thì chọn '3'."
+  hinh_thuc_chi_tra_khamsk:
+    source: pdf
+    type: choice
+    choices: {"Ngân sách thành phố hỗ trợ": "Ngân sách nhà nước hỗ trợ", "Người sử dụng lao động chi trả": "Người sử dụng lao động chi trả", "Người dân tự chi trả": "Người dân tự chi trả", "Nguồn khác": "Nguồn khác"}
+    default: sample
+    ask: "Mục 'Nguồn chi trả' ở trang 2: ô nào được đánh dấu (không tính 'Khám theo hợp đồng'/'Khám phi địa giới')."
+  hinh_thuc_chi_tra_khamsk_chi_tiet:
+    source: pdf
+    type: choice
+    choices: {"Khám Theo Hợp Đồng": "Khám theo hợp đồng", "Khám Phi Địa Giới": "Khám phi địa giới"}
+    default: sample
+    ask: "Hai ô nhỏ 'Khám theo hợp đồng' / 'Khám phi địa giới' nằm dưới 'Ngân sách nhà nước hỗ trợ': ô nào được đánh dấu."
+  nguonkhac_ghiro:        {source: skip}
+
+  # ---------------- TIỀN SỬ ----------------
+  giadinh_macbenh:
+    source: pdf
+    type: multichoice
+    choices: {"1051": "Truyền nhiễm", "1052": "Tim mạch", "1053": "Đái tháo đường", "1054": "Lao", "1055": "Hen phế quản", "1056": "Ung thư", "1057": "Động kinh", "1058": "Rối loạn tâm thần", "1059": "Bệnh khác"}
+    ask: "Tiền sử gia đình (trang 1): nếu đánh dấu 'Không' thì để mảng rỗng; nếu 'Có' thì chọn các bệnh được ghi cụ thể."
+  giadinh_danhsachbenh_icd: {source: skip}
+
+  # 21 câu Có/Không của "Tiền sử bệnh, tật của bản thân" (STT trên phiếu -> keyword Medinet).
+  # Cột Có/Không: dấu / hoặc x nằm trong ô nào thì chọn ô đó.
+  yesno_group:
+    ask_prefix: "Tiền sử bản thân, bảng 22 dòng, dòng STT "
+    items:
+      benh_5nam:             {n: 1,  label: "Có bệnh hay bị thương trong 5 năm qua"}
+      benh_than_kinh:        {n: 2,  label: "Có bệnh thần kinh hay bị thương ở đầu"}
+      benh_mat:              {n: 3,  label: "Bệnh mắt hoặc giảm thị lực (trừ trường hợp đeo kính thuốc)"}
+      benh_tai:              {n: 4,  label: "Bệnh ở tai, giảm sức nghe hoặc thăng bằng"}
+      benh_tim:              {n: 5,  label: "Bệnh ở tim, nhồi máu cơ tim, bệnh tim mạch khác"}
+      pt_tim_mach:           {n: 6,  label: "Phẫu thuật can thiệp tim - mạch"}
+      tang_ha:               {n: 7,  label: "Tăng huyết áp"}
+      kho_tho:               {n: 8,  label: "Khó thở"}
+      benh_phoi:             {n: 9,  label: "Bệnh phổi, hen, khí phế thũng, viêm phế quản mạn tính"}
+      benh_than:             {n: 10, label: "Bệnh thận, lọc máu"}
+      nghien_ruou_bia:       {n: 11, label: "Nghiện rượu, bia"}
+      dai_thao_duong:        {n: 12, label: "Đái tháo đường hoặc kiểm soát tăng đường huyết"}
+      benh_tam_than:         {n: 13, label: "Bệnh tâm thần"}
+      mat_y_thuc:            {n: 14, label: "Mất ý thức, rối loạn ý thức"}
+      ngat_chong_mat:        {n: 15, label: "Ngất, chóng mặt"}
+      benh_tieu_hoa:         {n: 16, label: "Bệnh tiêu hóa"}
+      roi_loan_giac_ngu:     {n: 17, label: "Rối loạn giấc ngủ, ngừng thở khi ngủ, ngáy to"}
+      tai_bien_mach_mau_nao: {n: 18, label: "Tai biến mạch máu não hoặc liệt"}
+      cot_song:              {n: 19, label: "Bệnh hoặc tổn thương cột sống"}
+      su_dung_ruou_bia:      {n: 20, label: "Sử dụng rượu, bia thường xuyên, liên tục"}
+      su_dung_ma_tuy:        {n: 21, label: "Sử dụng ma túy và chất gây nghiện"}
+  benh_khac:
+    source: pdf
+    type: text
+    default: "Không"
+    ask: "Dòng STT 22 'Bệnh khác (ghi rõ)': chữ viết tay; để trống nếu không có."
+  dieu_tri_benh_co_khong:
+    source: pdf
+    type: yesno
+    ask: "Câu 3a 'Ông (bà) có đang điều trị bệnh gì không?': Không=0, Có=1."
+  dieu_tri_benh_liet_ke:
+    source: pdf
+    type: text
+    ask: "Câu 3a: thuốc/liều đang dùng nếu chọn Có."
+  thai_san_co_khong:
+    source: pdf
+    type: yesno
+    female_only: true
+    ask: "Câu 3b Tiền sử thai sản (chỉ nữ): Không=0, Có=1; nam hoặc không đánh dấu thì để trống."
+  thai_san_liet_ke:
+    source: pdf
+    type: text
+    ask: "Câu 3b: nội dung ghi khi chọn Có."
+
+  # ---------------- KHÁM THỂ LỰC ----------------
+  chieucao:       {source: pdf, type: number, plausible: [100, 210], ask: "Chiều cao (cm)."}
+  cannang:        {source: pdf, type: number, plausible: [20, 200],  ask: "Cân nặng (kg)."}
+  nhiptho:        {source: pdf, type: number, plausible: [8, 40],    ask: "Nhịp thở (lần/phút)."}
+  mach:           {source: pdf, type: number, plausible: [40, 160],  ask: "Mạch (lần/phút)."}
+  huyetaptamthu:  {source: pdf, type: number, plausible: [70, 230],  ask: "Huyết áp: số TRÊN (tâm thu) của dạng 120/80 mmHg."}
+  huyetaptamtruong: {source: pdf, type: number, plausible: [40, 140], ask: "Huyết áp: số DƯỚI (tâm trương) của dạng 120/80 mmHg."}
+  phanloai:
+    source: pdf
+    type: choice
+    choices: {"1": "Loại I", "2": "Loại II", "3": "Loại III", "4": "Loại IV", "5": "Loại V"}
+    ask: "'Phân loại thể lực' ở cuối phần khám thể lực."
+
+  # ---------------- KHÁM LÂM SÀNG ----------------
+  # Mỗi chuyên khoa sinh ra 4 cột:  <prefix>_chuaphathienbatthuong, _chandoansobo_icd,
+  # _chandoanxacdinh_icd, _phanloai.  Cột nào tên "lạ" thì khai ở keywords:.
+  specialties:
+    - {prefix: noikhoa,      name: "Nội khoa - Tuần hoàn (mục 1a)"}
+    - {prefix: hohap,        name: "Nội khoa - Hô hấp (1b)"}
+    - {prefix: tieuhoa,      name: "Nội khoa - Tiêu hóa (1c)"}
+    - {prefix: thantietnieu, name: "Nội khoa - Thận-Tiết niệu (1d)"}
+    - {prefix: noitiet,      name: "Nội khoa - Nội tiết (1đ)"}
+    - {prefix: coxuongkhop,  name: "Nội khoa - Cơ-xương-khớp (1e)"}
+    - prefix: thankinh
+      name: "Nội khoa - Thần kinh (1g)"
+      keywords: {sobo: thankinh_chuandoansobo_icd}     # Medinet viết "chuan" thay vì "chan"
+    - {prefix: tamthan,      name: "Nội khoa - Tâm thần (1h)"}
+    - {prefix: ngoaikhoa,    name: "Ngoại khoa (mục 2)"}
+    - {prefix: dalieu,       name: "Da liễu (mục 3)"}
+    - {prefix: sankhoa,      name: "Sản phụ khoa - Sản khoa (mục 4)", female_only: true}
+    - {prefix: phukhoa,      name: "Sản phụ khoa - Phụ khoa (mục 4)", female_only: true}
+    - {prefix: mat,          name: "Mắt (mục 5)"}
+    - {prefix: tmh,          name: "Tai - Mũi - Họng (mục 6)"}
+    - {prefix: rhm,          name: "Răng - Hàm - Mặt (mục 7)"}
+
+  sankhoa_tuchoikham: {source: skip}
+  phukhoa_tuchoikham: {source: skip}
+
+  # Thị lực: phiếu viết dạng 10/10 -> Medinet mẫu ghi "10" (post: before_slash)
+  mat_khongkinh_mp: {source: pdf, type: text, post: before_slash, ask: "Mắt - Không kính, MP (mắt phải). Ví dụ viết 10/10 -> trả '10/10'."}
+  mat_khongkinh_mt: {source: pdf, type: text, post: before_slash, ask: "Mắt - Không kính, MT (mắt trái)."}
+  mat_kinhlo_mp:    {source: pdf, type: text, post: before_slash, ask: "Mắt - Kính lỗ, MP; thường trống."}
+  mat_kinhlo_mt:    {source: pdf, type: text, post: before_slash, ask: "Mắt - Kính lỗ, MT; thường trống."}
+  mat_cokinh_mp:    {source: pdf, type: text, post: before_slash, ask: "Mắt - Có kính, MP; thường trống."}
+  mat_cokinh_mt:    {source: pdf, type: text, post: before_slash, ask: "Mắt - Có kính, MT; thường trống."}
+  mat_docau_mp:     {source: pdf, type: text, ask: "Khúc xạ MP - độ cầu (nếu có ghi)."}
+  mat_dotru_mp:     {source: pdf, type: text, ask: "Khúc xạ MP - độ trụ (nếu có ghi)."}
+  mat_truc_mp:      {source: pdf, type: text, ask: "Khúc xạ MP - trục (nếu có ghi)."}
+  mat_docau_mt:     {source: pdf, type: text, ask: "Khúc xạ MT - độ cầu (nếu có ghi)."}
+  mat_dotru_mt:     {source: pdf, type: text, ask: "Khúc xạ MT - độ trụ (nếu có ghi)."}
+  mat_truc_mt:      {source: pdf, type: text, ask: "Khúc xạ MT - trục (nếu có ghi)."}
+  tai_noithuong_tt: {source: pdf, type: number, ask: "Thính lực: Tai TRÁI, nói thường (m)."}
+  tai_noithuong_tp: {source: pdf, type: number, ask: "Thính lực: Tai PHẢI, nói thường (m)."}
+  tai_noitham_tt:   {source: pdf, type: number, ask: "Thính lực: Tai TRÁI, nói thầm (m)."}
+  tai_noitham_tp:   {source: pdf, type: number, ask: "Thính lực: Tai PHẢI, nói thầm (m)."}
+
+  loai_kham: {source: const, value: "2"}      # 1 = Khám tuyển, 2 = Khám định kỳ
+
+  # ---------------- CẬN LÂM SÀNG (đọc từ phiếu KẾT QUẢ XÉT NGHIỆM in sẵn) ----------------
+  # scale: hệ số nhân để đổi đơn vị trên phiếu in -> đơn vị Medinet (xem tiêu đề cột trong mẫu).
+  # Nếu phòng xét nghiệm đổi đơn vị, chỉnh scale ở đây; plausible giúp phát hiện sai đơn vị.
+  kskdk_xnm_slhc:        {source: pdf, type: number, ask: "Xét nghiệm: RBC (số lượng hồng cầu), x10^12/L.", plausible: [2, 8]}
+  kskdk_xnm_huyetsacto:  {source: pdf, type: number, scale: 10,   ask: "Xét nghiệm: HGB, đơn vị trên phiếu g/dL (tool tự đổi sang g/L).", plausible: [60, 220]}
+  kskdk_xnm_hematocrit:  {source: pdf, type: number, scale: 0.01, ask: "Xét nghiệm: HCT, đơn vị % (tool tự đổi sang L/L).", plausible: [0.2, 0.65]}
+  kskdk_xnm_mcv:         {source: pdf, type: number, ask: "Xét nghiệm: MCV (fL).", plausible: [60, 120]}
+  kskdk_xnm_mch:         {source: pdf, type: number, ask: "Xét nghiệm: MCH (pg).", plausible: [15, 40]}
+  kskdk_xnm_mchc:        {source: pdf, type: number, scale: 10,   ask: "Xét nghiệm: MCHC, g/dL (tool tự đổi sang g/L).", plausible: [250, 400]}
+  kskdk_xnm_rdw:         {source: pdf, type: number, ask: "Xét nghiệm: RDW hoặc RDW_CV (%).", plausible: [8, 25]}
+  kskdk_xnm_slbc:        {source: pdf, type: number, ask: "Xét nghiệm: WBC (G/L).", plausible: [1, 30]}
+  kskdk_xnm_slbc_trungtinh: {source: pdf, type: number, ask: "Số lượng (#, KHÔNG phải %) bạch cầu trung tính: GRAN# hoặc NEUT#."}
+  kskdk_xnm_slbc_lympho: {source: pdf, type: number, ask: "Số lượng (#, KHÔNG phải %) LYM#."}
+  kskdk_xnm_slbc_donnhan: {source: pdf, type: number, ask: "Số lượng (#) bạch cầu đơn nhân: MONO#; nếu máy chỉ có MID# thì lấy MID#."}
+  kskdk_xnm_slbc_aitoan: {source: pdf, type: number, ask: "Số lượng (#) bạch cầu ái toan EO#; để trống nếu phiếu không có."}
+  kskdk_xnm_slbc_aikiem: {source: pdf, type: number, ask: "Số lượng (#) bạch cầu ái kiềm BASO#; để trống nếu phiếu không có."}
+  kskdk_xnm_sltc:        {source: pdf, type: number, ask: "Xét nghiệm: PLT (G/L).", plausible: [50, 800]}
+  kskdk_shm_duongmau:    {source: pdf, type: number, ask: "Định lượng Glucose [Máu] (mmol/L).", plausible: [2, 30]}
+  kskdk_shm_duongmau_lucdoi: {source: skip}
+  kskdk_shm_ure:         {source: pdf, type: number, ask: "Định lượng Urê (mmol/L) nếu có."}
+  kskdk_shm_creatinin:   {source: pdf, type: number, ask: "Định lượng Creatinin (umol/L).", plausible: [20, 400]}
+  kskdk_shm_asat_got:    {source: pdf, type: number, ask: "Đo hoạt độ AST (GOT) (U/L)."}
+  kskdk_shm_alat_gpt:    {source: pdf, type: number, ask: "Đo hoạt độ ALT (GPT) (U/L)."}
+  kskdk_xnnt_titrong:    {source: pdf, type: number, ask: "Nước tiểu: Specific Gravity / tỉ trọng."}
+  kskdk_xnnt_ph:         {source: pdf, type: number, ask: "Nước tiểu: pH."}
+  kskdk_xnnt_bachcau:    {source: pdf, type: text, ask: "Nước tiểu: Leukocytes (Leu/uL); nếu Negative thì trả 'negative'."}
+  kskdk_xnnt_hongcau:    {source: pdf, type: text, ask: "Nước tiểu: Blood/Erythrocytes (Ery/uL); nếu Negative thì trả 'negative'."}
+  kskdk_xnnt_nitrit:
+    source: pdf
+    type: choice
+    choices: {"1": "Âm tính (Negative)", "0": "Dương tính (Positive)"}
+    ask: "Nước tiểu: Nitrite."
+  kskdk_xnnt_protein:    {source: pdf, type: text, ask: "Nước tiểu: Protein; Negative -> 'negative'; nếu có số thì ghi số (đơn vị trên phiếu)."}
+  kskdk_xnnt_glucose:    {source: pdf, type: text, ask: "Nước tiểu: Glucose; Negative -> 'negative'."}
+  kskdk_xnnt_cetonic:    {source: pdf, type: text, ask: "Nước tiểu: Ketone; Negative -> 'negative'."}
+  kskdk_xnnt_bilirubin:  {source: pdf, type: text, ask: "Nước tiểu: Bilirubin; Negative -> 'negative'."}
+  kskdk_xnnt_urobilinogen: {source: pdf, type: text, ask: "Nước tiểu: Urobilinogen; Normal -> 'normal'."}
+  kskdk_xnnt_khac:       {source: skip}
+  kskdk_chuan_doan_hinh_anh: {source: pdf, type: text, ask: "Mục 'Kết quả chẩn đoán hình ảnh (X-quang)' - chữ viết tay hoặc in, thường để trống."}
+  can_lam_sang_khac:
+    source: pdf
+    type: choice
+    choices: {"1": "Có", "2": "Không"}
+    default: "2"
+    ask: "Mục d) Cận lâm sàng khác: Không=2, Có=1."
+  can_lam_sang_khac_chi_tiet: {source: pdf, type: text, ask: "Mục d) nếu chọn Có thì ghi chi tiết."}
+  xet_nghiem_te_bao_co_tu_cung: {source: pdf, type: text, ask: "Nữ lao động: XN tế bào cổ tử cung/HPV (nếu ghi)."}
+  xet_nghiem_hpv:        {source: skip}
+  xquang_nhu:            {source: pdf, type: text, ask: "X-quang nhũ (nếu ghi)."}
+  sieu_am_2_tuyen_vu:    {source: pdf, type: text, ask: "Siêu âm 02 tuyến vú (nếu ghi)."}
+
+  # ---------------- KẾT LUẬN ----------------
+  danh_muc_de_nghi:
+    source: pdf
+    type: choice
+    choices:
+      "Bình thường, hẹn khám định kỳ lần sau": "Bình thường / tái khám định kỳ"
+      "Có yếu tố nguy cơ, cần theo dõi thêm": "Có yếu tố nguy cơ, cần theo dõi thêm"
+      "Đã có bệnh mạn tính, tiếp tục điều trị theo phác đồ/toa cũ": "Đã có bệnh mạn tính, tiếp tục điều trị"
+      "Chuyển tuyến, khám chuyên khoa": "Chuyển tuyến / khám chuyên khoa"
+      "Khác": "Khác"
+    default: sample
+    ask: "Mục V.3 'Đề nghị' ở trang Kết luận (kể cả chữ trong con dấu như 'TÁI KHÁM ĐỊNH KỲ')."
+  denghi_chuyentuyen_ghiro: {source: pdf, type: text, ask: "Chỉ khi đề nghị chuyển tuyến/khám chuyên khoa: nội dung ghi rõ."}
+  de_nghi:
+    source: pdf
+    type: text
+    default: sample
+    ask: "Nội dung chữ ở mục V.3 'Đề nghị' (kể cả chữ trong con dấu), ví dụ 'Tái khám định kỳ'."
+
+  # ---------------- CỘT CÔNG THỨC CỦA FILE MẪU (đừng ghi đè) ----------------
+  nghenghiep_id: {source: formula}
+  noi_cong_tac:  {source: formula}
+
+# Trường ảo: AI đọc nguyên văn, rồi tool chuẩn hoá theo danh mục trong file mẫu.
+virtual:
+  _tinh_hien_tai:      {type: text, ask: "Mục 8 phần 'Xã, phường: ..., <tỉnh/thành>': phần TỈNH/THÀNH PHỐ (ví dụ 'TP HCM')."}
+  _phuong_hien_tai:    {type: text, ask: "Mục 8 dòng 'Xã, phường': chỉ tên phường/xã của nơi ở hiện tại (không kèm tỉnh)."}
+  _nghe_nghiep_viet:   {type: text, ask: "Mục 9 Nghề nghiệp, nguyên văn."}

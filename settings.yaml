@@ -1,0 +1,47 @@
+# Cài đặt chung (không liên quan cấu trúc cột Medinet)
+
+claude:
+  model: claude-sonnet-5-5      # đổi sang model khác nếu cần (vd claude-sonnet-4-5)
+  max_tokens: 8000
+  workers: 3                    # số bệnh nhân đọc song song
+
+pdf:
+  dpi: 150                      # tăng 170-200 nếu chữ viết tay khó đọc (tốn token hơn)
+  jpeg_quality: 82
+  pages_per_patient: 12         # 1 bệnh nhân = 8 trang phiếu + 2x(xét nghiệm + trang trắng mặt sau)
+  skip_blank_pages: true        # bỏ trang trắng (mặt sau) trước khi gửi cho AI
+  blank_ink_ratio: 0.001        # tỉ lệ điểm đen < ngưỡng này coi là trang trắng (trang trắng thật ~0, trang ít chữ ~0.003)
+
+excel:
+  sheet_name: ThongTinHanhChinh
+  patient_first_row: 5          # dòng bắt đầu ghi dữ liệu (dòng 4 là keyword)
+  keyword_row: 4
+  label_row: 2
+  sub_label_row: 3
+  hint_row: 1
+  stt_column: A                 # cột STT tự đánh số; bỏ dòng này nếu không cần
+  decimal_separator: ","        # mẫu của bạn dùng "0,5" -> dấu phẩy
+  # Cột mới Medinet thêm mà chưa khai báo trong fields.yaml: điền theo dòng 5 của file mẫu?
+  fill_new_columns_from_sample: true
+
+# Cách viết tỉnh/thành hay gặp trên phiếu -> tên trong sheet Tinh
+province_aliases:
+  "tp hcm": "Thành Phố Hồ Chí Minh"
+  "tphcm": "Thành Phố Hồ Chí Minh"
+  "hcm": "Thành Phố Hồ Chí Minh"
+  "sai gon": "Thành Phố Hồ Chí Minh"
+  "tp.hcm": "Thành Phố Hồ Chí Minh"
+  "tp ho chi minh": "Thành Phố Hồ Chí Minh"
+
+# Ngưỡng khớp mờ (0-100) khi đối chiếu tên phường/nghề nghiệp với danh mục trong file mẫu
+match_threshold:
+  province: 80
+  ward: 85
+  occupation: 88
+
+# Cột công thức tra cứu của file mẫu: tool tính sẵn giá trị đệm (Excel vẫn tự tính lại khi mở).
+# Nếu Medinet đổi vị trí cột công thức (GE/GG/GH...) thì sửa chữ cái cột ở đây.
+formula_cache:
+  - {col: GE, kind: occupation_id, from: nghenghiep_code}
+  - {col: GG, kind: province_id,   from: city_id}
+  - {col: GH, kind: ward_id,       from: ward_id, city_from: city_id}
