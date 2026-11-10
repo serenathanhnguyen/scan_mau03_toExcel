@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import os
+import zipfile
 from pathlib import Path
 
 import anthropic
@@ -60,12 +62,18 @@ with st.sidebar:
     st.subheader("File mẫu Excel (Medinet)")
     up_tpl = st.file_uploader("Tải mẫu mới nhất từ Medinet", type=["xlsx"], key="tpl")
     local = sorted((ROOT / "templates").glob("*.xlsx"), key=lambda p: p.stat().st_mtime)
+    valid = [p for p in local if zipfile.is_zipfile(p)]      # bỏ qua file .xlsx rỗng/hỏng
+    for p in set(local) - set(valid):
+        st.warning(f"Bỏ qua templates/{p.name}: file rỗng hoặc hỏng ({p.stat().st_size} byte). Hãy tải lại file mẫu gốc từ Medinet.")
     if up_tpl:
         tpl_bytes, tpl_name = up_tpl.getvalue(), up_tpl.name
-    elif local:
-        tpl_bytes, tpl_name = local[-1].read_bytes(), local[-1].name
+        if not zipfile.is_zipfile(io.BytesIO(tpl_bytes)):
+            st.error("File vừa tải lên không phải file .xlsx hợp lệ.")
+            st.stop()
+    elif valid:
+        tpl_bytes, tpl_name = valid[-1].read_bytes(), valid[-1].name
     else:
-        st.error("Chưa có file mẫu: tải lên hoặc bỏ vào thư mục templates/")
+        st.error("Chưa có file mẫu hợp lệ: tải lên ở đây hoặc đưa file .xlsx gốc vào thư mục templates/")
         st.stop()
     st.caption(f"Đang dùng: {tpl_name}")
 
