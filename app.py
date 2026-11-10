@@ -113,10 +113,19 @@ if pdf_file:
         if st.session_state.get("starts_key") != key:
             st.session_state["starts_key"], st.session_state["starts"] = key, None
         if st.button("Nhận diện ranh giới hồ sơ"):
-            with st.spinner("AI đang xem các trang..."):
-                client = anthropic.Anthropic(api_key=api_key)
-                pages = [i for i in range(n) if not (blank and blank[i])]
-                st.session_state["starts"] = detect_patient_starts(client, cfg, pdf, pages)
+            if not api_key.strip():
+                st.error("Chưa nhập Anthropic API key ở thanh bên (ô trống sẽ gây lỗi kết nối).")
+            else:
+                try:
+                    with st.spinner("AI đang xem các trang..."):
+                        client = anthropic.Anthropic(api_key=api_key.strip())
+                        pages = [i for i in range(n) if not (blank and blank[i])]
+                        st.session_state["starts"] = detect_patient_starts(client, cfg, pdf, pages)
+                except anthropic.AuthenticationError:
+                    st.error("API key không hợp lệ.")
+                except anthropic.APIError as e:
+                    st.error(f"Lỗi gọi API ({type(e).__name__}): kiểm tra API key, tên model và kết nối. "
+                             "Hoặc chuyển sang chế độ 'Cố định số trang / bệnh nhân' (không cần gọi AI).")
         starts = st.session_state.get("starts")
         groups = pdfmod.split_by_starts(n, starts, blank) if starts else []
     else:
@@ -130,7 +139,7 @@ if pdf_file:
         if not api_key:
             st.error("Nhập API key ở thanh bên.")
             st.stop()
-        client = anthropic.Anthropic(api_key=api_key)
+        client = anthropic.Anthropic(api_key=api_key.strip())
         bar = st.progress(0.0, "Đang đọc...")
         res = process_all(client, cfg, tpl, lk, pdf, groups,
                           progress=lambda d, t: bar.progress(d / t, f"Đã đọc {d}/{t} hồ sơ"))
